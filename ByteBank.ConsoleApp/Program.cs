@@ -1,4 +1,5 @@
 ﻿using ByteBank.Common;
+using System.Reflection;
 
 MostrarBanner();
 
@@ -37,6 +38,7 @@ static void MostrarMenu()
     Console.WriteLine();
     Console.WriteLine("1. Ler arquivo de boletos.");
     Console.WriteLine("2. Gerar arquivo com boletos agrupados por cedente.");
+    Console.WriteLine("3. Executar Plugins.");
     Console.WriteLine();
     Console.Write("Digite o número da opção desejada: ");
 }
@@ -49,6 +51,9 @@ static void ExecutarEscolha(int escolha)
             LerArquivoBoletos();
             break;
         case 2: GravarGrupoBoletos();
+            break;
+        case 3:
+            ExecutarPlugins();
             break;
 
         default:
@@ -103,4 +108,64 @@ static void ProcessarDinamicamente(string nomeParametroConstrutor, string parame
 
     //Realiza a chamada do método Processar.
     metodoProcessar.Invoke(instanciaClasse, new object[] {parametroMetodo});
+}
+
+static void ExecutarPlugins()
+{
+    //Ler boletos a partir do arquivo CSV
+    var leitorDeCSV = new LeitorDeBoleto();
+    List<Boleto> boletos = leitorDeCSV.LerBoletos("Boletos.csv");
+
+    //Obter classes de plugin 
+    List<Type> classesDePlugin = ObterClassesDePlugin<IRelatorio<Boleto>>();
+
+    foreach (var classe in classesDePlugin)
+    {
+        // Criar uma instância do plugin
+        var plugin = Activator.CreateInstance(classe, new object[] { "BoletosPorCedente.csv" });
+
+        // Chamar o método Processar usando Reflection
+        MethodInfo metodoSalvar = classe.GetMethod("Processar");
+        metodoSalvar.Invoke(plugin, new object[] { boletos });
+    }
+}
+static List<Type> ObterClassesDePlugin<T>()
+{
+    var tiposEncontrados = new List<Type>();
+
+    //Pegar assembly em execução.
+    //Assembly assemblyExec = Assembly.GetExecutingAssembly();
+
+    //Assembly onde um tipo é declarado.
+    Assembly assemblyPlugins = typeof(T).Assembly;
+
+    //Descobrir tipos do assembly.
+    var tipos = assemblyPlugins.GetTypes();
+
+    //foreach (Type tipo in tipos)
+    //{
+    //    Console.WriteLine($@"Nome: {tipo.Name}");
+    //    Console.WriteLine($@"Nome completo: {tipo.FullName}");
+    //    Console.WriteLine($@"Classe?: {tipo.IsClass}");
+    //    Console.WriteLine($@"Interface?: {tipo.IsInterface}");
+    //    Console.WriteLine($@"Abstrato?: {tipo.IsAbstract}");
+
+    //    Console.WriteLine("Interfaces implementadas: ");
+    //    foreach (var interfaceType in tipo.GetInterfaces())
+    //    {
+    //        Console.WriteLine($@" - {interfaceType.Name}");
+    //    }
+    //    Console.WriteLine();
+    //}
+
+    //Tipos que implementam interface.
+    List<Type> tiposImpInterfaceT = tipos.Where(tipo => 
+                                          typeof(T).IsAssignableFrom(tipo)
+                                          && tipo.IsClass
+                                          && !tipo.IsAbstract).ToList();
+
+    tiposEncontrados.AddRange(tiposImpInterfaceT);
+
+    return tiposEncontrados;
+
 }
