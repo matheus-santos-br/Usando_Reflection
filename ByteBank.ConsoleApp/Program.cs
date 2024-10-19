@@ -55,7 +55,7 @@ static void ExecutarEscolha(int escolha)
         case 3:
             ExecutarPlugins();
             break;
-
+   
         default:
             Console.WriteLine("Opção inválida. Tente novamente.");
             break;
@@ -122,7 +122,8 @@ static void ExecutarPlugins()
     foreach (var classe in classesDePlugin)
     {
         // Criar uma instância do plugin
-        var plugin = Activator.CreateInstance(classe, new object[] { "BoletosPorCedente.csv" });
+        //var plugin = Activator.CreateInstance(classe, new object[] { "BoletosPorCedente.csv" });
+        var plugin = Activator.CreateInstance(classe);
 
         // Chamar o método Processar usando Reflection
         MethodInfo metodoSalvar = classe.GetMethod("Processar");
@@ -137,35 +138,52 @@ static List<Type> ObterClassesDePlugin<T>()
     //Assembly assemblyExec = Assembly.GetExecutingAssembly();
 
     //Assembly onde um tipo é declarado.
-    Assembly assemblyPlugins = typeof(T).Assembly;
+    //Assembly assemblyPlugins = typeof(T).Assembly;
 
-    //Descobrir tipos do assembly.
-    var tipos = assemblyPlugins.GetTypes();
+    //Assembly onde um tipo é declarado.
+    var assemblies = ObterAssembliesDePlugins();
 
-    //foreach (Type tipo in tipos)
-    //{
-    //    Console.WriteLine($@"Nome: {tipo.Name}");
-    //    Console.WriteLine($@"Nome completo: {tipo.FullName}");
-    //    Console.WriteLine($@"Classe?: {tipo.IsClass}");
-    //    Console.WriteLine($@"Interface?: {tipo.IsInterface}");
-    //    Console.WriteLine($@"Abstrato?: {tipo.IsAbstract}");
+    foreach (var assembly in assemblies)
+    {
+        Console.WriteLine($@"Assembly encontrado: {assembly.FullName}");
 
-    //    Console.WriteLine("Interfaces implementadas: ");
-    //    foreach (var interfaceType in tipo.GetInterfaces())
-    //    {
-    //        Console.WriteLine($@" - {interfaceType.Name}");
-    //    }
-    //    Console.WriteLine();
-    //}
+        List<Type> tiposImpInterfaceT = ObterTiposDoAssembly<T>(assembly);
 
-    //Tipos que implementam interface.
-    List<Type> tiposImpInterfaceT = tipos.Where(tipo => 
-                                          typeof(T).IsAssignableFrom(tipo)
-                                          && tipo.IsClass
-                                          && !tipo.IsAbstract).ToList();
-
-    tiposEncontrados.AddRange(tiposImpInterfaceT);
+        tiposEncontrados.AddRange(tiposImpInterfaceT);
+    }
 
     return tiposEncontrados;
 
+}
+
+static List<Type> ObterTiposDoAssembly<T>(Assembly assemblyPlugins)
+{
+    //Descobrir tipos do assembly.
+    var tipos = assemblyPlugins.GetTypes();
+
+    //Tipos que implementam interface.
+    List<Type> tiposImpInterfaceT = tipos.Where(tipo =>
+                                          typeof(T).IsAssignableFrom(tipo)
+                                          && tipo.IsClass
+                                          && !tipo.IsAbstract).ToList();
+    return tiposImpInterfaceT;
+}
+
+static List<Assembly> ObterAssembliesDePlugins()
+{
+    var assemblies = new List<Assembly>();
+
+    const string diretorio = $@"C:\dev\C# Reflection manipule dinamicamente tipos e assemblies\Plugins";
+
+    //Obter os arquivos .dll da pasta.
+    string[] arquivosDll = Directory.GetFiles(diretorio,"*.dll");
+
+    foreach(string arquivo in arquivosDll)
+    {
+        //Carregar o assembly a partir do arquivo dll.
+        var assembly = Assembly.LoadFrom(arquivo);
+        assemblies.Add(assembly);
+    }
+
+    return assemblies;
 }
